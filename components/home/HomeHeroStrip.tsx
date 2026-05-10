@@ -70,18 +70,18 @@ const LEVEL_VISUAL: Record<
   mid: {
     label: "보통",
     chipClass:
-      "border-sky-200/90 bg-sky-50 text-sky-900 ring-1 ring-sky-100",
-    stroke: "#0284C7",
-    fill: "#F0F9FF",
-    compositeNumClass: "text-sky-600",
+      "border-[#BFDCE8]/90 bg-[#F4FAFD] text-[#1E5C74] ring-1 ring-[#D9ECF3]",
+    stroke: "#2F7A96",
+    fill: "#F2F9FC",
+    compositeNumClass: "text-[#2F7A96]",
   },
   high: {
     label: "높음",
     chipClass:
-      "border-sky-300/90 bg-sky-50 text-sky-950 ring-1 ring-sky-200",
-    stroke: "#0369A1",
-    fill: "#E0F2FE",
-    compositeNumClass: "text-sky-700",
+      "border-[#A6CEDF]/90 bg-[#EFF7FB] text-[#174C62] ring-1 ring-[#CFE5EF]",
+    stroke: "#1F5E78",
+    fill: "#EAF4F9",
+    compositeNumClass: "text-[#1F5E78]",
   },
 };
 
@@ -145,8 +145,8 @@ function CtaPlaygroundArt({ className, gradientId }: { className?: string; gradi
       <ellipse cx="28" cy="39.5" rx="18.5" ry="5.5" fill="#FFF7ED" opacity="0.95" />
       <circle cx="19" cy="29" r="4.2" fill="#F97316" />
       <path d="M19 33v5" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="28" cy="26.5" r="4.8" fill="#0284C7" />
-      <path d="M28 31v6" stroke="#0284C7" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="28" cy="26.5" r="4.8" fill="#2F7A96" />
+      <path d="M28 31v6" stroke="#2F7A96" strokeWidth="2.2" strokeLinecap="round" />
       <circle cx="37" cy="29" r="4.2" fill="#F97316" />
       <path d="M37 33v5" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" />
       <path
@@ -162,9 +162,11 @@ function CtaPlaygroundArt({ className, gradientId }: { className?: string; gradi
 
 type Props = {
   interests: string[];
+  /** 모모아 플레이그라운드 카드 선택 시 (예: 쿠폰함 오버레이) */
+  onNavigatePlayground?: () => void;
 };
 
-export function HomeHeroStrip({ interests }: Props) {
+export function HomeHeroStrip({ interests, onNavigatePlayground }: Props) {
   const statsGradientId = useId().replace(/:/g, "");
   const [slides, setSlides] = useState<ChildProfileSlice[]>(() => loadChildrenFromStorage());
   const [i, setI] = useState(0);
@@ -442,6 +444,7 @@ export function HomeHeroStrip({ interests }: Props) {
             document
               .getElementById("playground-section")
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            onNavigatePlayground?.();
           }}
         >
           <div
@@ -453,7 +456,7 @@ export function HomeHeroStrip({ interests }: Props) {
             }}
           />
           <div className="pointer-events-none absolute -left-16 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-[#F97316]/[0.07] blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-sky-400/[0.09] blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[#7FB5CA]/[0.12] blur-3xl" aria-hidden />
 
           <div className="relative flex items-center gap-4 px-[1.15rem] py-[1.05rem] sm:gap-5 sm:px-6 sm:py-5">
             <div className="min-w-0 flex-1">
@@ -626,7 +629,7 @@ export function HomeHeroStrip({ interests }: Props) {
                 className={`rounded-2xl border p-4 text-left shadow-sm shadow-slate-200/30 transition hover:brightness-[1.02] active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F97316]/45 ${
                   d.key === "save"
                     ? "border-orange-100 bg-gradient-to-br from-orange-50/90 to-white ring-1 ring-orange-100/80 hover:ring-orange-300/70"
-                    : `border-slate-100 bg-white hover:ring-2 hover:ring-sky-100 ${
+                    : `border-slate-100 bg-white hover:ring-2 hover:ring-[#DCEAF1] ${
                         lowTier ? "ring-1 ring-amber-100/90" : ""
                       }`
                 }`}
@@ -646,7 +649,7 @@ export function HomeHeroStrip({ interests }: Props) {
                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{d.blurb}</p>
                 <p className="mt-3 text-xs font-semibold tabular-nums text-slate-700">
                   지표 점수{" "}
-                  <span className={d.key === "save" ? "text-[#F97316]" : "text-sky-700"}>{d.score}</span>
+                  <span className={d.key === "save" ? "text-[#F97316]" : "text-[#2F6F88]"}>{d.score}</span>
                   <span className="font-normal text-slate-400"> / 100</span>
                 </p>
                 <p className="mt-3 text-[11px] font-semibold text-[#F97316]/90">코치 보기 →</p>
@@ -663,13 +666,13 @@ export function HomeHeroStrip({ interests }: Props) {
           ) : null}
         </p>
 
-        <div className="mt-4 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-white px-4 py-3.5 shadow-sm">
+        <div className="mt-4 rounded-2xl border border-[#D5E8F1] bg-gradient-to-br from-[#F4FAFD] to-white px-4 py-3.5 shadow-sm">
           <div className="flex gap-3">
             <span className="text-xl leading-none" aria-hidden>
               💡
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-sky-800/90">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[#1E5C74]/90">
                 인사이트
               </p>
               <p className="mt-1 text-[13px] font-medium leading-relaxed text-slate-700">

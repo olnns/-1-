@@ -9,7 +9,7 @@ import {
 
 export const MAIN_TAB_EVENT = "momoA-request-main-tab";
 
-export function requestMainTab(tab: "home" | "gear" | "community" | "reviews" | "mypage") {
+export function requestMainTab(tab: "home" | "gear" | "family" | "reviews" | "mypage") {
   window.dispatchEvent(new CustomEvent(MAIN_TAB_EVENT, { detail: { tab } }));
 }
 

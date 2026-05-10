@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Onboarding from "./onboarding/Onboarding";
-import ReloginScreen from "./onboarding/ReloginScreen";
 import {
   CustomizableDefaultAvatar,
   loadDefaultAvatarStyleFromStorage,
@@ -50,10 +49,10 @@ import MyWrittenReviewsPage from "./pages/MyWrittenReviewsPage";
 import MyInquiriesPage from "./pages/MyInquiriesPage";
 import MyCouponsPage from "./pages/MyCouponsPage";
 import MyPointsDetailPage from "./pages/MyPointsDetailPage";
-import { SituationalRecommendSection } from "./pages/SituationalRecommendSection";
-import CommunityEmpathyScreen from "./components/community/CommunityEmpathyScreen";
+import FamilyHubScreen from "./components/family/FamilyHubScreen";
 import SettingsScreen from "./settings/SettingsScreen";
 import {
+  consumeRestartSplashQuery,
   isOnboardingCompleted,
   isSessionSignedOut,
   markOnboardingCompleted,
@@ -61,7 +60,9 @@ import {
 } from "./settings/accountActions";
 import NotificationInboxPage from "./pages/NotificationInboxPage";
 import { CartScreenProvider, useCartScreen, useOptionalCartScreen } from "./components/cart/CartScreenContext";
-import ParentingConsultation3Min from "./components/consultation/ParentingConsultation3Min";
+import ParentingConsultation3Min, {
+  CONSULTATION_DOCK_OPEN_EVENT,
+} from "./components/consultation/ParentingConsultation3Min";
 import {
   loadConsultationResult,
   type CategoryId,
@@ -83,7 +84,8 @@ import {
   saveScraps,
 } from "./gear/gearScrapStorage";
 
-type MainTab = "home" | "gear" | "community" | "reviews" | "mypage";
+type MainTab = "home" | "gear" | "family" | "mypage";
+const CONSULTATION_MIN_REVIEW_RATING = 4.5;
 
 export type Product = {
   id: number;
@@ -466,7 +468,9 @@ function consultationPoolByTier(
   const filtered = pool.filter((p) => {
     const cid = p.categoryId as CategoryId | undefined;
     if (!cid || !result.categoryTier[cid]) return false;
-    return result.categoryTier[cid] === tier;
+    if (result.categoryTier[cid] !== tier) return false;
+    const reviewRating = p.score / 20;
+    return reviewRating >= CONSULTATION_MIN_REVIEW_RATING;
   });
 
   return [...filtered].sort((a, b) => {
@@ -528,12 +532,17 @@ function BabyGearScreen({
   detailProduct,
   onDetailProductChange,
   onOpenTop10Detail,
+  gearSearchSeed,
+  onConsumedGearSearchSeed,
 }: {
   onOpenReviewHub: () => void;
   onOpenConsultTab: () => void;
   detailProduct: Product | null;
   onDetailProductChange: (product: Product | null) => void;
   onOpenTop10Detail: (payload: { products: Product[]; title: string; description: string }) => void;
+  /** 홈·마이 관심사 칩에서 넘긴 검색어 */
+  gearSearchSeed?: string | null;
+  onConsumedGearSearchSeed?: () => void;
 }) {
   const setDetailProduct = onDetailProductChange;
   const [searchTerm, setSearchTerm] = useState("");
@@ -543,6 +552,12 @@ function BabyGearScreen({
   const [promoSheet, setPromoSheet] = useState<{ title: string; body: string } | null>(null);
 
   const { addToCart, openCheckout } = useCartScreen();
+
+  useEffect(() => {
+    if (gearSearchSeed == null || gearSearchSeed.trim() === "") return;
+    setSearchTerm(gearSearchSeed.trim());
+    onConsumedGearSearchSeed?.();
+  }, [gearSearchSeed, onConsumedGearSearchSeed]);
 
   useEffect(() => {
     if (!familyMonthPromoOpen) return;
@@ -839,23 +854,6 @@ function BabyGearScreen({
           </>
         ) : (
           <>
-            <div className="rounded-2xl border border-[#FFD2BF]/50 bg-white p-5 shadow-sm">
-              <p className="text-sm font-bold text-slate-900">
-                <span className="text-sky-600">AI 상담</span>
-                <span className="text-slate-900"> 후 아래 추천이 켜져요</span>
-              </p>
-              <p className="mt-1.5 text-xs font-medium leading-relaxed text-slate-500">
-                필수·추천·나중에 순서는 상담 답변을 따라가요.
-              </p>
-              <button
-                type="button"
-                onClick={onOpenConsultTab}
-                className="mt-4 w-full rounded-full bg-[#FF853E] py-3 text-sm font-bold text-white shadow-md shadow-orange-200/40"
-              >
-                상담 받기
-              </button>
-            </div>
-
             <section aria-label="이번 주 인기 순위">
               <GearSectionHeader
                 title={
@@ -1177,7 +1175,14 @@ function BabyGearScreen({
 }
 
 // 1-나. 홈 — 동네·MOMOA·알림 + 안내 (탭 이탈 시 언마운트 → 재진입 시 관심사 다시 로드)
-function Home() {
+function Home({
+  onNavigatePlayground,
+  onNavigateGear,
+}: {
+  onNavigatePlayground?: () => void;
+  /** 관심사 칩·맞춤 글에서 육아용품 탭 검색으로 이동 */
+  onNavigateGear?: (keyword: string) => void;
+}) {
   const [interests, setInterests] = useState(() => loadMyPageProfileFromStorage().interests);
 
   useEffect(() => {
@@ -1196,11 +1201,11 @@ function Home() {
         <MainScreenTopBar />
       </div>
 
-      <HomeHeroStrip interests={interests} />
+      <HomeHeroStrip interests={interests} onNavigatePlayground={onNavigatePlayground} />
 
       <div className="mt-6 flex flex-col gap-6 px-5 pb-safe-tab sm:px-6">
         <EventCarousel />
-        <InterestPersonalizedSection interests={interests} />
+        <InterestPersonalizedSection interests={interests} onNavigateGear={onNavigateGear} />
       </div>
     </div>
   );
@@ -1214,6 +1219,7 @@ function MyPage({
   onOpenCoupons,
   onOpenPoints,
   onOpenNotifications,
+  onNavigateGear,
 }: {
   onOpenSettings: () => void;
   onOpenOrderHistory: () => void;
@@ -1222,6 +1228,7 @@ function MyPage({
   onOpenCoupons: () => void;
   onOpenPoints: () => void;
   onOpenNotifications: () => void;
+  onNavigateGear?: (keyword: string) => void;
 }) {
   const cart = useOptionalCartScreen();
   const recentViewProducts = useMemo(() => GEAR_PRODUCT_CATALOG.slice(0, 6), []);
@@ -1603,12 +1610,15 @@ function MyPage({
                 >
                   <div className="flex flex-wrap gap-1.5">
                     {profile.interests.filter(Boolean).map((item) => (
-                      <span
+                      <button
                         key={item}
-                        className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-[11px] font-bold text-[#FF853E] shadow-sm sm:text-xs"
+                        type="button"
+                        onClick={() => onNavigateGear?.(item)}
+                        title="육아용품 탭에서 이 관심사로 검색"
+                        className="inline-flex items-center rounded-lg bg-white px-2 py-0.5 text-left text-[11px] font-bold text-[#FF853E] shadow-sm transition hover:bg-[#FFF8F4] hover:ring-1 hover:ring-[#FFD2BF] active:scale-[0.98] sm:text-xs"
                       >
                         {item}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -2147,6 +2157,10 @@ function MyPage({
         </div>
       </div>
 
+      <div className="mt-5">
+        <PurchaseReviewSection />
+      </div>
+
       {momoBannerOpen && (
         <div
           className="app-viewport-fixed z-[70] flex items-center justify-center bg-black/45 px-6"
@@ -2224,7 +2238,7 @@ function StarScorePicker({
   );
 }
 
-function ReviewsScreen() {
+function PurchaseReviewSection() {
   const [scores, setScores] = useState<Record<number, number>>(() => loadPurchaseReviewScores());
   const [reviewTexts, setReviewTexts] = useState<Record<number, string>>(() => loadPurchaseReviewTexts());
 
@@ -2254,81 +2268,84 @@ function ReviewsScreen() {
   }, []);
 
   return (
+    <section className="card-soft p-6">
+      <h2 className="text-lg font-bold tracking-tight text-slate-900">구매 제품 평가</h2>
+      <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+        배송·품질 경험을 별점으로 알려주시면 다른 엄마들에게도 도움이 돼요.
+      </p>
+
+      <ul className="mt-5 space-y-4">
+        {PURCHASED_FOR_REVIEW.map((p) => {
+          const myScore = scores[p.id] ?? 0;
+          return (
+            <li
+              key={p.id}
+              className="rounded-2xl border border-slate-100/80 bg-white/70 p-4 shadow-sm"
+            >
+              <div className="flex gap-3">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                  <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#FF853E]">{p.tag}</p>
+                  <p className="mt-0.5 line-clamp-2 text-sm font-bold text-slate-900">{p.name}</p>
+                  <p className="mt-1 text-xs font-normal text-slate-500">{p.price}원</p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <StarScorePicker
+                  value={myScore}
+                  onChange={(n) => setProductScore(p.id, n)}
+                  productName={p.name}
+                />
+                <p className="text-xs font-medium text-slate-600 sm:text-right">
+                  {myScore > 0 ? (
+                    <>
+                      내 점수 <span className="text-[#FF853E]">{myScore}</span> / 5
+                    </>
+                  ) : (
+                    <span className="text-slate-400">별을 눌러 점수를 선택해 주세요</span>
+                  )}
+                </p>
+              </div>
+              {myScore > 0 && (
+                <div className="mt-4 border-t border-slate-200/80 pt-4">
+                  <label
+                    className="text-xs font-semibold text-slate-800"
+                    htmlFor={`purchase-review-text-${p.id}`}
+                  >
+                    더 자세한 후기
+                  </label>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                    배송·포장·사용감 등을 적어 주시면 다른 엄마들에게 큰 도움이 돼요.
+                  </p>
+                  <textarea
+                    id={`purchase-review-text-${p.id}`}
+                    value={reviewTexts[p.id] ?? ""}
+                    onChange={(e) => setProductReviewText(p.id, e.target.value)}
+                    rows={4}
+                    placeholder="예: 소재가 부드럽고 사이즈가 잘 맞았어요. 야간에도 새지 않아서 만족해요."
+                    className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium leading-relaxed text-slate-800 outline-none ring-1 ring-slate-100 transition placeholder:text-slate-400 focus:border-[#FFD2BF] focus:ring-2 focus:ring-[#FF853E]/25"
+                  />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function ReviewsScreen() {
+  return (
     <div className="min-h-dvh p-5 pb-safe-tab font-sans sm:p-6">
       <MainScreenTopBar />
-      <ParentingConsultation3Min />
-      <SituationalRecommendSection />
-
-      <section className="card-soft mt-4 p-6">
-        <h2 className="text-lg font-bold tracking-tight text-slate-900">구매 제품 평가</h2>
-        <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
-          배송·품질 경험을 별점으로 알려주시면 다른 엄마들에게도 도움이 돼요.
-        </p>
-
-        <ul className="mt-5 space-y-4">
-          {PURCHASED_FOR_REVIEW.map((p) => {
-            const myScore = scores[p.id] ?? 0;
-            return (
-              <li
-                key={p.id}
-                className="rounded-2xl border border-slate-100/80 bg-white/70 p-4 shadow-sm"
-              >
-                <div className="flex gap-3">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
-                    <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-[#FF853E]">{p.tag}</p>
-                    <p className="mt-0.5 line-clamp-2 text-sm font-bold text-slate-900">{p.name}</p>
-                    <p className="mt-1 text-xs font-normal text-slate-500">{p.price}원</p>
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col gap-2 border-t border-slate-200/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <StarScorePicker
-                    value={myScore}
-                    onChange={(n) => setProductScore(p.id, n)}
-                    productName={p.name}
-                  />
-                  <p className="text-xs font-medium text-slate-600 sm:text-right">
-                    {myScore > 0 ? (
-                      <>
-                        내 점수 <span className="text-[#FF853E]">{myScore}</span> / 5
-                      </>
-                    ) : (
-                      <span className="text-slate-400">별을 눌러 점수를 선택해 주세요</span>
-                    )}
-                  </p>
-                </div>
-                {myScore > 0 && (
-                  <div className="mt-4 border-t border-slate-200/80 pt-4">
-                    <label
-                      className="text-xs font-semibold text-slate-800"
-                      htmlFor={`purchase-review-text-${p.id}`}
-                    >
-                      더 자세한 후기
-                    </label>
-                    <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                      배송·포장·사용감 등을 적어 주시면 다른 엄마들에게 큰 도움이 돼요.
-                    </p>
-                    <textarea
-                      id={`purchase-review-text-${p.id}`}
-                      value={reviewTexts[p.id] ?? ""}
-                      onChange={(e) => setProductReviewText(p.id, e.target.value)}
-                      rows={4}
-                      placeholder="예: 소재가 부드럽고 사이즈가 잘 맞았어요. 야간에도 새지 않아서 만족해요."
-                      className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium leading-relaxed text-slate-800 outline-none ring-1 ring-slate-100 transition placeholder:text-slate-400 focus:border-[#FFD2BF] focus:ring-2 focus:ring-[#FF853E]/25"
-                    />
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
       <section className="mt-5 rounded-2xl border border-dashed border-slate-200/80 bg-white/50 p-5 text-center backdrop-blur-sm">
         <p className="text-sm font-medium text-slate-500">
-          상담·문의는 마이페이지 또는 고객센터로 연결될 예정이에요.
+          3분 AI 상담은 <span className="font-semibold text-slate-700">오른쪽 아래 AI 상담</span> 버튼에서 열 수 있어요. 문의는 마이페이지 또는
+          고객센터로 연결될 예정이에요.
         </p>
       </section>
     </div>
@@ -2353,15 +2370,6 @@ function BottomNav({
       ),
     },
     {
-      key: "reviews",
-      label: "상담",
-      icon: (
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
-        </svg>
-      ),
-    },
-    {
       key: "gear",
       label: "육아용품",
       icon: (
@@ -2371,11 +2379,13 @@ function BottomNav({
       ),
     },
     {
-      key: "community",
-      label: "커뮤니티",
+      key: "family",
+      label: "패밀리",
       icon: (
         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 21s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.6-9.5 9-9.5 9Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
     },
@@ -2424,7 +2434,7 @@ function BottomNav({
   );
 }
 
-function MainTabs() {
+function MainTabs({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<MainTab>("home");
   const [overlay, setOverlay] = useState<
     | null
@@ -2441,7 +2451,7 @@ function MainTabs() {
   useEffect(() => {
     const handler = (e: Event) => {
       const t = (e as CustomEvent<{ tab?: MainTab }>).detail?.tab;
-      if (t === "home" || t === "gear" || t === "community" || t === "reviews" || t === "mypage") {
+      if (t === "home" || t === "gear" || t === "family" || t === "mypage") {
         setTab(t);
       }
     };
@@ -2449,29 +2459,43 @@ function MainTabs() {
     return () => window.removeEventListener(MAIN_TAB_EVENT, handler as EventListener);
   }, []);
   const [gearDetailProduct, setGearDetailProduct] = useState<Product | null>(null);
+  const [gearSearchSeed, setGearSearchSeed] = useState<string | null>(null);
   const [top10DetailPayload, setTop10DetailPayload] = useState<{
     products: Product[];
     title: string;
     description: string;
   } | null>(null);
 
+  const navigateGearByInterest = useCallback((keyword: string) => {
+    setGearSearchSeed(keyword.trim());
+    setTab("gear");
+  }, []);
+
   return (
     <CartScreenProvider>
     <div
-      className={`relative w-full min-h-dvh ${tab === "reviews" ? "app-screen-consult" : "bg-white"}`}
+      className="relative w-full min-h-dvh bg-white"
     >
-      {tab === "home" && <Home />}
+      {tab === "home" && (
+        <Home
+          onNavigatePlayground={() => setOverlay("coupons")}
+          onNavigateGear={navigateGearByInterest}
+        />
+      )}
       {tab === "gear" && (
         <BabyGearScreen
           onOpenReviewHub={() => setOverlay("reviewHub")}
-          onOpenConsultTab={() => setTab("reviews")}
+          onOpenConsultTab={() => {
+            window.dispatchEvent(new CustomEvent(CONSULTATION_DOCK_OPEN_EVENT));
+          }}
           detailProduct={gearDetailProduct}
           onDetailProductChange={setGearDetailProduct}
           onOpenTop10Detail={setTop10DetailPayload}
+          gearSearchSeed={gearSearchSeed}
+          onConsumedGearSearchSeed={() => setGearSearchSeed(null)}
         />
       )}
-      {tab === "community" && <CommunityEmpathyScreen />}
-      {tab === "reviews" && <ReviewsScreen />}
+      {tab === "family" && <FamilyHubScreen />}
       {tab === "mypage" && (
         <MyPage
           onOpenSettings={() => setOverlay("settings")}
@@ -2481,6 +2505,7 @@ function MainTabs() {
           onOpenCoupons={() => setOverlay("coupons")}
           onOpenPoints={() => setOverlay("points")}
           onOpenNotifications={() => setOverlay("notifications")}
+          onNavigateGear={navigateGearByInterest}
         />
       )}
 
@@ -2490,6 +2515,7 @@ function MainTabs() {
             appVersion="v4.2.3(664)"
             onBack={() => setOverlay(null)}
             onOpenInquiries={() => setOverlay("inquiries")}
+            onLogoutComplete={onLogout}
           />
         </div>
       )}
@@ -2551,6 +2577,8 @@ function MainTabs() {
         </div>
       )}
 
+      {tab !== "mypage" && <ParentingConsultation3Min layout="dock" />}
+
       <BottomNav active={tab} onChange={setTab} />
     </div>
     </CartScreenProvider>
@@ -2559,27 +2587,23 @@ function MainTabs() {
 
 // 2. 메인 App 컴포넌트 (온보딩 포함)
 export default function App() {
-  const [view, setView] = useState<"onboarding" | "home" | "relogin">(() => {
+  /** 온보딩 미완료·로그아웃 후 → 스플래시부터 동일 플로우 */
+  const [view, setView] = useState<"onboarding" | "home">(() => {
     if (typeof window === "undefined") return "onboarding";
 
     try {
-      let completed = isOnboardingCompleted();
-      const p = loadMyPageProfileFromStorage();
-      const hasNickname = Boolean(p.nickname?.trim());
+      consumeRestartSplashQuery();
 
-      if (!completed && hasNickname) {
-        markOnboardingCompleted();
-        completed = true;
-      }
-
-      if (completed && isSessionSignedOut()) return "relogin";
-      if (!completed) return "onboarding";
-      return "home";
-    } catch {
       const completed = isOnboardingCompleted();
-      if (completed && isSessionSignedOut()) return "relogin";
-      if (!completed) return "onboarding";
-      return "home";
+      const signedIn = completed && !isSessionSignedOut();
+      if (signedIn) return "home";
+      return "onboarding";
+    } catch {
+      consumeRestartSplashQuery();
+      const completed = isOnboardingCompleted();
+      const signedIn = completed && !isSessionSignedOut();
+      if (signedIn) return "home";
+      return "onboarding";
     }
   });
 
@@ -2594,10 +2618,8 @@ export default function App() {
       <div className="relative flex min-h-dvh w-full max-w-app flex-1 flex-col bg-white shadow-[0_0_0_1px_rgba(148,163,184,0.15),0_20px_50px_-18px_rgba(15,23,42,0.08)]">
         {view === "onboarding" ? (
           <Onboarding onComplete={handleFinishOnboarding} />
-        ) : view === "relogin" ? (
-          <ReloginScreen onSuccess={() => setView("home")} />
         ) : (
-          <MainTabs />
+          <MainTabs onLogout={() => setView("onboarding")} />
         )}
       </div>
     </div>

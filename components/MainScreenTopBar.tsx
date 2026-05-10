@@ -86,7 +86,7 @@ type MainScreenTopBarProps = {
 
 /**
  * 왼쪽 MOMOA 로고 · 알림 · 장바구니
- * 동네·위치 기반 설정은 커뮤니티 탭(`NeighborhoodLocationControl`)에서만 제공합니다.
+ * 동네·위치 기반 설정은 패밀리·기타 화면의 지역 컨트롤에서 제공할 수 있습니다.
  */
 export default function MainScreenTopBar({ showBrandMark = true }: MainScreenTopBarProps) {
   const [notificationOpen, setNotificationOpen] = useState(false);

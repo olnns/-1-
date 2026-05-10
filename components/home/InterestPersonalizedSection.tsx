@@ -1,9 +1,11 @@
 import React, { useMemo } from "react";
 import { buildPersonalizedHomeFeed } from "../../home/personalizedHomeFeed";
-import { isInterestCategory } from "../../onboarding/interestCategories";
+import { isInterestCategory, type InterestCategory } from "../../onboarding/interestCategories";
 
 type Props = {
   interests: string[];
+  /** 관심사 칩·추천 카드 클릭 시 육아용품 검색으로 이동 */
+  onNavigateGear?: (keyword: string) => void;
 };
 
 const kindLabel: Record<string, string> = {
@@ -12,7 +14,17 @@ const kindLabel: Record<string, string> = {
   checklist: "체크리스트",
 };
 
-export function InterestPersonalizedSection({ interests }: Props) {
+function keywordForFeedItem(item: {
+  matchedLabels: InterestCategory[];
+  categories: InterestCategory[];
+}, interestsKnown: InterestCategory[]): string | null {
+  if (item.matchedLabels.length > 0) return item.matchedLabels[0];
+  if (item.categories.length > 0) return item.categories[0];
+  if (interestsKnown.length > 0) return interestsKnown[0];
+  return null;
+}
+
+export function InterestPersonalizedSection({ interests, onNavigateGear }: Props) {
   const feed = useMemo(() => buildPersonalizedHomeFeed(interests, 8), [interests]);
   const known = interests.filter(isInterestCategory);
 
@@ -42,12 +54,15 @@ export function InterestPersonalizedSection({ interests }: Props) {
       {known.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="내 관심 영역">
           {known.map((tag) => (
-            <span
+            <button
               key={tag}
-              className="rounded-full bg-[#FFF7ED] px-2.5 py-1 text-[10px] font-bold text-[#F97316]"
+              type="button"
+              onClick={() => onNavigateGear?.(tag)}
+              title="육아용품 탭에서 이 관심사로 검색"
+              className="rounded-full bg-[#FFF7ED] px-2.5 py-1 text-[10px] font-bold text-[#F97316] transition hover:bg-[#FFEDD5] hover:ring-1 hover:ring-[#FDBA74] active:scale-[0.98]"
             >
               {tag}
-            </span>
+            </button>
           ))}
         </div>
       ) : (
@@ -61,13 +76,18 @@ export function InterestPersonalizedSection({ interests }: Props) {
           <li key={item.id}>
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                const kw = keywordForFeedItem(item, known);
+                if (kw && onNavigateGear) {
+                  onNavigateGear(kw);
+                  return;
+                }
                 window.alert(
                   `[데모] ${item.title}\n\n관심 매칭: ${
                     item.matchedLabels.length > 0 ? item.matchedLabels.join(", ") : "전체 추천"
                   }\n순위 점수: ${item.score} (표시 ${index + 1}번째)`
-                )
-              }
+                );
+              }}
               className="flex w-full gap-3 rounded-2xl border border-slate-100 bg-white/90 p-3 text-left transition hover:bg-[#FFF7ED]"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F97316]/12 text-sm font-bold text-[#F97316]">
@@ -97,7 +117,7 @@ export function InterestPersonalizedSection({ interests }: Props) {
                 </p>
                 <p className="mt-1 text-[10px] font-bold text-slate-400">
                   {item.matchedLabels.length > 0
-                    ? `관심사와 ${item.matchedLabels.length}개 태그가 맞아요`
+                    ? `관심사와 ${item.matchedLabels.length}개 태그가 맞아요 · 탭하면 관련 템 검색`
                     : "관심사 미설정 시 인기 순으로 보여드려요"}
                 </p>
               </div>

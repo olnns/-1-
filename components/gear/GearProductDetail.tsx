@@ -42,7 +42,7 @@ function defaultGallery(p: GearProductDetailModel): string[] {
   return [p.imageUrl, p.imageUrl, p.imageUrl];
 }
 
-/** 가격 아래 — 외부 구매·상세 이동 사이트 안내 */
+/** 가격 아래 — 인앱 결제 안내 배지 */
 function ExternalSiteBadge({ product }: { product: GearProductDetailModel }) {
   const info = getPurchaseDestinationInfo(product);
   if (!info) return null;
@@ -70,15 +70,15 @@ function ExternalSiteBadge({ product }: { product: GearProductDetailModel }) {
     <div
       className={`mt-3 flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${shell}`}
       role="status"
-      aria-label={`연결 사이트 ${headline}`}
+      aria-label={`상품 정보 출처 ${headline}`}
     >
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">연결 이동</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">정보 출처</p>
         <p className="mt-0.5 text-[13px] font-bold leading-tight">{headline}</p>
       </div>
       <span className="shrink-0 rounded-lg bg-white/80 px-2 py-1 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200/80">
-        외부 앱·웹
+        앱 내 결제
       </span>
     </div>
   );
@@ -246,33 +246,12 @@ export default function GearProductDetail({
           )}
 
           {product.purchaseUrl && (
-            <div
-              className={`mt-5 rounded-2xl px-4 py-4 ${
-                product.purchaseUrl.includes("brand.naver.com") ||
-                product.externalPlatform?.includes("네이버")
-                  ? "border border-emerald-200/90 bg-emerald-50 ring-1 ring-emerald-100"
-                  : "border border-[#FFD2BF]/80 bg-[#FFF8F4]"
-              }`}
-            >
+            <div className="mt-5 rounded-2xl border border-[#FFD2BF]/80 bg-[#FFF8F4] px-4 py-4">
               {product.popularitySignal && (
                 <p className="text-[12px] font-semibold text-slate-700">{product.popularitySignal}</p>
               )}
-              <a
-                href={product.purchaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14px] font-bold text-white shadow-md transition ${
-                  product.purchaseUrl.includes("brand.naver.com") ||
-                  product.externalPlatform?.includes("네이버")
-                    ? "bg-[#03C75A] hover:brightness-[1.06]"
-                    : "bg-[#FF853E] hover:brightness-[1.03]"
-                }`}
-              >
-                {product.externalPlatform ?? "구매처"}에서 상품 페이지 열기
-                <span aria-hidden>↗</span>
-              </a>
-              <p className="mt-2 text-[10px] font-medium text-slate-400">
-                외부 사이트로 이동합니다. 가격·배송은 해당 쇼핑몰 안내를 확인해 주세요.
+              <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-600">
+                결제는 외부 플랫폼으로 이동하지 않고 모모아 앱 안에서 바로 진행됩니다.
               </p>
             </div>
           )}
@@ -310,15 +289,14 @@ export default function GearProductDetail({
 
           {!(product.instagramUrl && !product.purchaseUrl) ? (
             <div className="mt-6 flex gap-3">
-              {onAddToCart && (
-                <button
-                  type="button"
-                  onClick={() => onAddToCart()}
-                  className="flex-1 rounded-2xl border-2 border-[#FFD2BF] bg-white py-4 text-[15px] font-bold text-[#E85A20] shadow-sm transition hover:bg-[#FFFCF9] active:scale-[0.99]"
-                >
-                  장바구니 담기
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => onAddToCart?.()}
+                disabled={!onAddToCart}
+                className="flex-1 rounded-2xl border-2 border-[#FFD2BF] bg-white py-4 text-[15px] font-bold text-[#E85A20] shadow-sm transition hover:bg-[#FFFCF9] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                장바구니 넣기
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -331,7 +309,7 @@ export default function GearProductDetail({
                 }}
                 className={`rounded-2xl bg-[#FF853E] py-4 text-[15px] font-bold text-white shadow-md shadow-orange-200/40 transition hover:brightness-[1.02] active:scale-[0.99] ${onAddToCart ? "flex-1" : "w-full"}`}
               >
-                {onBuyNow ? "바로 구매" : "바로 결제하기"}
+                {onBuyNow ? "구매하기" : "바로 결제하기"}
               </button>
             </div>
           ) : null}
